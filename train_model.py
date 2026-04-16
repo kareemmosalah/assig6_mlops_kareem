@@ -23,3 +23,4 @@ def train():
 
 if __name__ == "__main__":
     train()
+raise Exception('GPU memory limit exceeded (Simulated Crash)')
