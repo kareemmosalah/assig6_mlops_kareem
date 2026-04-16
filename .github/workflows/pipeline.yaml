@@ -30,8 +30,8 @@ jobs:
 
       - name: Run flake8 linter
         run: |
-          echo "Running flake8 on assig6_mlops/train_model.py ..."
-          flake8 assig6_mlops/train_model.py --max-line-length=120
+          echo "Running flake8 on train_model.py ..."
+          flake8 train_model.py --max-line-length=120
           echo "✅ Linter passed!"
 
   # ══════════════════════════════════════════════════════════════
@@ -65,13 +65,13 @@ jobs:
       - name: Install dependencies
         run: |
           pip install torch --index-url https://download.pytorch.org/whl/cpu
-          pip install -r assig6_mlops/requirements.txt
+          pip install -r requirements.txt
 
       # ── Main training step ──────────────────────────────────────
       - name: Run training script
         run: |
           echo "🏋️  Starting model training ..."
-          python assig6_mlops/train_model.py 2>&1 | tee /tmp/train_output.log
+          python train_model.py 2>&1 | tee /tmp/train_output.log
           echo "✅ Training complete!"
 
       # ── Upload error logs ONLY if training failed ───────────────
