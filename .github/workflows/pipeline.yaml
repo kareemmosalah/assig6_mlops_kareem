@@ -1,0 +1,96 @@
+name: Gatekeeper ML Pipeline
+
+# ─────────────────────────────────────────
+# Triggers: run on every push to any branch
+# ─────────────────────────────────────────
+on:
+  push:
+    branches:
+      - '**'
+
+jobs:
+  # ══════════════════════════════════════════════════════════════
+  # JOB 1 – LINTER  (lightweight, runs on every push)
+  # ══════════════════════════════════════════════════════════════
+  lint:
+    name: 🔍 Linter Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install flake8
+        run: pip install flake8
+
+      - name: Run flake8 linter
+        run: |
+          echo "Running flake8 on assig6_mlops/train_model.py ..."
+          flake8 assig6_mlops/train_model.py --max-line-length=120
+          echo "✅ Linter passed!"
+
+  # ══════════════════════════════════════════════════════════════
+  # JOB 2 – TRAIN  (expensive / GPU — Gatekeeper-protected)
+  #
+  #  Runs ONLY when ALL three conditions are satisfied:
+  #    1.  lint job passed        → needs: lint
+  #    2.  branch is main         → github.ref == 'refs/heads/main'
+  #    3.  commit message contains [run-train]
+  # ══════════════════════════════════════════════════════════════
+  train:
+    name: 🚀 Train Model (GPU)
+    runs-on: ubuntu-latest          # swap to a GPU runner in production
+    needs: lint                     # Condition 1 – lint must pass first
+
+    # Conditions 2 & 3 — branch=main AND commit has [run-train]
+    if: |
+      github.ref == 'refs/heads/main' &&
+      contains(github.event.head_commit.message, '[run-train]')
+
+    steps:
+      # ── Setup ──────────────────────────────────────────────────
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r assig6_mlops/requirements.txt
+
+      # ── Main training step ──────────────────────────────────────
+      - name: Run training script
+        run: |
+          echo "🏋️  Starting model training ..."
+          python assig6_mlops/train_model.py 2>&1 | tee /tmp/train_output.log
+          echo "✅ Training complete!"
+
+      # ── Upload error logs ONLY if training failed ───────────────
+      - name: Upload error logs on failure
+        if: failure()
+        run: |
+          # Collect whatever was captured during the failed step
+          cp /tmp/train_output.log error_logs.txt || echo "No training log found" > error_logs.txt
+
+      - name: Upload error_logs.txt as GHA Artifact
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: error-logs
+          path: error_logs.txt
+          retention-days: 7
+
+      # ── Always-run cleanup step ─────────────────────────────────
+      - name: Cleanup cloud volumes
+        if: always()
+        run: |
+          echo "Cleaning up temporary cloud volumes..."
