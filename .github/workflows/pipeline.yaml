@@ -70,6 +70,7 @@ jobs:
       # ── Main training step ──────────────────────────────────────
       - name: Run training script
         run: |
+          set -o pipefail
           echo "🏋️  Starting model training ..."
           python train_model.py 2>&1 | tee /tmp/train_output.log
           echo "✅ Training complete!"
